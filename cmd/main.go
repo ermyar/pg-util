@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"log/slog"
 
 	app "github.com/ermyar/pg-util/internal/app"
@@ -10,10 +9,11 @@ import (
 func main() {
 	app, err := app.Parse()
 	if err != nil {
-		log.Fatal(err.Error())
+		slog.Error("wrong input args", "err", err.Error())
+		return
 	}
 
 	if err := app.Run(); err != nil {
-		slog.Error(err.Error())
+		slog.Error("finished with error", "err", err.Error())
 	}
 }
