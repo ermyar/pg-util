@@ -4,6 +4,7 @@ go 1.24.9
 
 require (
 	github.com/jackc/pgx/v4 v4.18.3
+	github.com/joho/godotenv v1.5.1
 	github.com/spf13/pflag v1.0.10
 )
 
