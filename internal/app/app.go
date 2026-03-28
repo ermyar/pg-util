@@ -14,7 +14,7 @@ import (
 
 type App struct {
 	databases []string
-	action    func() error
+	action    func(context.Context) error
 	pool      *pgxpool.Pool
 }
 
@@ -23,9 +23,9 @@ var (
 	ErrUnknownLogLevel  = errors.New("provided unknown log level")
 )
 
-func (a *App) Run() error {
+func (a *App) Run(ctx context.Context) error {
 	defer a.pool.Close()
-	return a.action()
+	return a.action(ctx)
 }
 
 func Parse() (*App, error) {

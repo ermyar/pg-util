@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log/slog"
+	"os/signal"
+	"syscall"
 
-	app "github.com/ermyar/pg-util/internal/app"
+	"github.com/ermyar/pg-util/internal/app"
 )
 
 func main() {
@@ -13,7 +16,11 @@ func main() {
 		return
 	}
 
-	if err := app.Run(); err != nil {
+	ctx, cancel := signal.NotifyContext(context.Background(),
+		syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	if err := app.Run(ctx); err != nil {
 		slog.Error("finished with error", "err", err.Error())
 	}
 }
