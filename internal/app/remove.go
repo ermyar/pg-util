@@ -3,21 +3,24 @@ package app
 import (
 	"context"
 	"log/slog"
+	"sync"
 
 	"github.com/ermyar/pg-util/internal/postgres"
 )
 
-func (a *App) remove() error {
+func (a *App) remove(ctx context.Context) error {
 	slog.Info("remove started")
-	defer slog.Info("remove finished")
+	wg := sync.WaitGroup{}
 
 	for _, database := range a.databases {
-		if err := postgres.Drop(context.Background(), a.pool, database); err != nil {
-			slog.Warn("unable to drop", "database", database, "err", err)
-			continue
-		}
-		slog.Info("database removed", "database", database)
+		wg.Add(1)
+		go func(database string) {
+			defer wg.Done()
+			postgres.Drop(ctx, a.pool, database)
+		}(database)
 	}
 
+	wg.Wait()
+	slog.Info("remove finished")
 	return nil
 }

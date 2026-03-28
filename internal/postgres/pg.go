@@ -36,6 +36,11 @@ func (p *Config) Connect(ctx context.Context) (*pgxpool.Pool, error) {
 
 func Drop(ctx context.Context, pool *pgxpool.Pool, database string) error {
 	_, err := pool.Exec(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s", database))
+	if err != nil {
+		slog.Warn("unable to drop", "database", database, "err", err)
+	} else {
+		slog.Info("database removed", "database", database)
+	}
 	return err
 }
 
