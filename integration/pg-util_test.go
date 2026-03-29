@@ -1,0 +1,128 @@
+package test
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"strings"
+	"testing"
+
+	pg "github.com/ermyar/pg-util/internal/postgres"
+	"github.com/stretchr/testify/require"
+)
+
+func TestMain(m *testing.M) {
+	setup()
+
+	code := m.Run()
+
+	teardown()
+
+	os.Exit(code)
+}
+
+func TestRemove(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		conf    pg.Config
+		args    []string
+		deleted []string
+	}{
+		{
+			name:    "simple Remove",
+			conf:    pgCfg,
+			args:    []string{"remove_db"},
+			deleted: []string{"remove_db"},
+		},
+		{
+			name:    "complex Remove",
+			conf:    pgCfg,
+			args:    []string{"remove_db1", "remove_db2", "remove_db3"},
+			deleted: []string{"remove_db1", "remove_db2", "remove_db3"},
+		},
+		{
+			name:    "not exist",
+			conf:    pgCfg,
+			args:    []string{"tmp"},
+			deleted: []string(nil),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before, err := tc.conf.ListDatabases(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			remove := getCmd("remove", strings.Join(tc.args, ","), tc.conf)
+			if err := remove.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			after, err := tc.conf.ListDatabases(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			diff := getDiff(before, after)
+			require.Equal(t, diff, tc.deleted)
+		})
+	}
+}
+
+func TestBackup(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		conf   pg.Config
+		dbname string
+		tables []string
+	}{
+		{
+			name:   "simple Backup",
+			conf:   pgCfg,
+			dbname: "test",
+			tables: []string{"users", "numbers"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// backuping.
+			backup := getCmd("backup", tc.dbname, tc.conf)
+			if err := backup.Run(); err != nil {
+				t.Fatal(err)
+			}
+			backupFilename := "backup_" + tc.dbname + ".sql"
+			require.FileExists(t, backupFilename)
+
+			var before [][]string
+			for _, table := range tc.tables {
+				data, err := getValuesFromTable(context.Background(), tc.conf, table)
+				require.NoError(t, err)
+				before = append(before, data)
+			}
+
+			// removing.
+			remove := getCmd("remove", tc.dbname, tc.conf)
+			if err := remove.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			// restoring.
+			restore := exec.Command("psql", "-f", backupFilename)
+			restore.Args = append(restore.Args,
+				"-d", pgCfg.ConnString()+"/"+tc.dbname,
+			)
+			if err := restore.Run(); err != nil {
+				t.Fatal(err)
+			}
+
+			var after [][]string
+			for _, table := range tc.tables {
+				data, err := getValuesFromTable(context.Background(), tc.conf, table)
+				require.NoError(t, err)
+				after = append(after, data)
+			}
+
+			require.Equal(t, before, after)
+			os.Remove(backupFilename)
+		})
+	}
+}

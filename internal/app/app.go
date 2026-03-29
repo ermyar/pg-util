@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/ermyar/pg-util/internal/postgres"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/spf13/pflag"
 )
@@ -34,7 +34,7 @@ func Parse() (*App, error) {
 	var operation string
 
 	if err := godotenv.Load(); err != nil {
-		slog.Info("unable to load env", "err", err)
+		slog.Debug("unable to load env", "err", err)
 	}
 
 	opts := &slog.HandlerOptions{}
@@ -75,6 +75,7 @@ func Parse() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	slog.Info("connected to postgres")
 
 	app.pool = pool
 

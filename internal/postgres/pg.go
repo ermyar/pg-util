@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"os/exec"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Config struct {
@@ -16,21 +16,19 @@ type Config struct {
 	Password string
 }
 
-func (p *Config) connString() string {
+func (p *Config) ConnString() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s", p.User, p.Password, p.Host, p.Port)
 }
 
-func connToDatabase(connStr, database string) string {
-	return fmt.Sprintf("%s/%s", connStr, database)
-}
-
 func (p *Config) Connect(ctx context.Context) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.Connect(ctx, p.connString())
+	pool, err := pgxpool.New(ctx, p.ConnString())
 	if err != nil {
-		slog.Error("unable to connect to postgres", "error", err)
+		slog.Error("unable to create connection to postgres", "error", err)
 		return nil, err
 	}
-	slog.Info("connected to postgres")
+	if err := pool.Ping(ctx); err != nil {
+		return nil, err
+	}
 	return pool, nil
 }
 
@@ -50,9 +48,12 @@ func backupFile(database string) string {
 
 func Backup(ctx context.Context, pool *pgxpool.Pool, database string) error {
 	outputFile := backupFile(database)
+	connStr := fmt.Sprintf("%s/%s", pool.Config().ConnString(), database)
+
 	cmd := exec.CommandContext(ctx, "pg_dump",
-		"-d", connToDatabase(pool.Config().ConnString(), database),
+		"-d", connStr,
 		"-f", outputFile)
+
 	err := cmd.Run()
 	if err != nil {
 		slog.Warn("unable to backup", "database", database, "err", err)
@@ -60,4 +61,30 @@ func Backup(ctx context.Context, pool *pgxpool.Pool, database string) error {
 	}
 	slog.Info("succesfully dumped", "database", database, "file", outputFile)
 	return nil
+}
+
+func (c *Config) ListDatabases(ctx context.Context) ([]string, error) {
+	pgx, err := c.Connect(ctx)
+
+	if err != nil {
+		slog.Error("unable to connect to postgres", "error", err)
+		return nil, err
+	}
+
+	var databases []string
+	rows, err := pgx.Query(ctx, "SELECT datname FROM pg_database")
+	if err != nil {
+		slog.Error("unable to list databases", "error", err)
+		return nil, err
+	}
+
+	for rows.Next() {
+		var database string
+		if err := rows.Scan(&database); err != nil {
+			slog.Error("unable to scan database", "error", err)
+			return nil, err
+		}
+		databases = append(databases, database)
+	}
+	return databases, nil
 }
