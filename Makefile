@@ -7,6 +7,6 @@ clean:
 	rm -f $(BINARY_NAME)
 
 test:
-	go test ./...
+	go test -v ./integration
 
 .PHONY: build clean test

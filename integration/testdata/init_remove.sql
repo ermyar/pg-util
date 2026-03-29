@@ -1,0 +1,4 @@
+CREATE DATABASE remove_db;
+CREATE DATABASE remove_db1;
+CREATE DATABASE remove_db2;
+CREATE DATABASE remove_db3;

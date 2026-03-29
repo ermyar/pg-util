@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -22,5 +23,6 @@ func main() {
 
 	if err := app.Run(ctx); err != nil {
 		slog.Error("finished with error", "err", err.Error())
+		os.Exit(1)
 	}
 }

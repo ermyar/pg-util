@@ -1,8 +1,10 @@
 services:
-  postgres:
-    image: postgres:16
+  postgres-test:
+    image: postgres:16-alpine
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: ${PGUSER}
-      POSTGRES_PASSWORD: ${PGPASSWORD}
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    volumes:
+      - ./integration/testdata:/docker-entrypoint-initdb.d
