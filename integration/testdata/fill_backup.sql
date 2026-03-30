@@ -39,3 +39,5 @@ VALUES
     ('Ten');
 
 SELECT * FROM numbers;
+
+CREATE DATABASE restored;

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	pg "github.com/ermyar/pg-util/internal/postgres"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var binaryPath string
@@ -110,8 +111,8 @@ func getCmd(operation, databases string, conf pg.Config) *exec.Cmd {
 	return cmd
 }
 
-func getValuesFromTable(ctx context.Context, cfg pg.Config, table string) ([]string, error) {
-	conn, err := cfg.Connect(ctx)
+func getValuesFromTable(ctx context.Context, cfg pg.Config, database, table string) ([]string, error) {
+	conn, err := pgxpool.New(ctx, cfg.ConnString()+"/"+database)
 	if err != nil {
 		return nil, err
 	}
