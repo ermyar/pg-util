@@ -40,7 +40,14 @@ func Parse() (*App, error) {
 		slog.Debug("unable to load env", "err", err)
 	}
 
-	opts := &slog.HandlerOptions{}
+	opts := &slog.HandlerOptions{
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.TimeKey {
+				return slog.Attr{}
+			}
+			return a
+		},
+	}
 
 	switch os.Getenv("LOGLEVEL") {
 	case "DEBUG":

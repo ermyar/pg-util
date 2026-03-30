@@ -87,16 +87,18 @@ func TestRemove(t *testing.T) {
 
 func TestBackup(t *testing.T) {
 	for _, tc := range []struct {
-		name   string
-		conf   pg.Config
-		dbname string
-		tables []string
+		name    string
+		conf    pg.Config
+		dbname  string
+		restore string
+		tables  []string
 	}{
 		{
-			name:   "simple",
-			conf:   pgCfg,
-			dbname: "test",
-			tables: []string{"users", "numbers"},
+			name:    "simple",
+			conf:    pgCfg,
+			dbname:  "test",
+			restore: "restored",
+			tables:  []string{"users", "numbers"},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -110,21 +112,15 @@ func TestBackup(t *testing.T) {
 
 			var before [][]string
 			for _, table := range tc.tables {
-				data, err := getValuesFromTable(context.Background(), tc.conf, table)
+				data, err := getValuesFromTable(context.Background(), tc.conf, tc.dbname, table)
 				require.NoError(t, err)
 				before = append(before, data)
-			}
-
-			// removing.
-			remove := getCmd("remove", tc.dbname, tc.conf)
-			if err := remove.Run(); err != nil {
-				t.Fatal(err)
 			}
 
 			// restoring.
 			restore := exec.Command("psql", "-f", backupFilename)
 			restore.Args = append(restore.Args,
-				"-d", pgCfg.ConnString()+"/"+tc.dbname,
+				"-d", pgCfg.ConnString()+"/"+tc.restore,
 			)
 			if err := restore.Run(); err != nil {
 				t.Fatal(err)
@@ -132,7 +128,7 @@ func TestBackup(t *testing.T) {
 
 			var after [][]string
 			for _, table := range tc.tables {
-				data, err := getValuesFromTable(context.Background(), tc.conf, table)
+				data, err := getValuesFromTable(context.Background(), tc.conf, tc.restore, table)
 				require.NoError(t, err)
 				after = append(after, data)
 			}
