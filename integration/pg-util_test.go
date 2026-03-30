@@ -29,13 +29,13 @@ func TestRemove(t *testing.T) {
 		deleted []string
 	}{
 		{
-			name:    "simple Remove",
+			name:    "simple",
 			conf:    pgCfg,
 			args:    []string{"remove_db"},
 			deleted: []string{"remove_db"},
 		},
 		{
-			name:    "complex Remove",
+			name:    "complex",
 			conf:    pgCfg,
 			args:    []string{"remove_db1", "remove_db2", "remove_db3"},
 			deleted: []string{"remove_db1", "remove_db2", "remove_db3"},
@@ -46,9 +46,25 @@ func TestRemove(t *testing.T) {
 			args:    []string{"tmp"},
 			deleted: []string(nil),
 		},
+		{
+			name: "regex",
+			conf: pgCfg,
+			args: []string{"remove_regular", "remove_regular_(a|b).+"},
+			deleted: []string{
+				"remove_regular",
+				"remove_regular_a1",
+				"remove_regular_a2",
+				"remove_regular_a3_wow",
+				"remove_regular_b_extra",
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			before, err := tc.conf.ListDatabases(context.Background())
+			conn, err := tc.conf.Connect(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := pg.ListDatabases(context.Background(), conn)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -58,13 +74,13 @@ func TestRemove(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			after, err := tc.conf.ListDatabases(context.Background())
+			after, err := pg.ListDatabases(context.Background(), conn)
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			diff := getDiff(before, after)
-			require.Equal(t, diff, tc.deleted)
+			require.Equal(t, tc.deleted, diff)
 		})
 	}
 }
@@ -77,7 +93,7 @@ func TestBackup(t *testing.T) {
 		tables []string
 	}{
 		{
-			name:   "simple Backup",
+			name:   "simple",
 			conf:   pgCfg,
 			dbname: "test",
 			tables: []string{"users", "numbers"},

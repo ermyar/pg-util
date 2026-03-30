@@ -12,7 +12,7 @@ func (a *App) remove(ctx context.Context) error {
 	slog.Info("remove started")
 	wg := sync.WaitGroup{}
 
-	for _, database := range a.databases {
+	for _, database := range a.findDatabases(ctx) {
 		wg.Add(1)
 		go func(database string) {
 			defer wg.Done()
