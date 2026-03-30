@@ -11,7 +11,8 @@ import (
 func (a *App) backup(ctx context.Context) error {
 	slog.Info("backup started")
 	wg := sync.WaitGroup{}
-	for _, database := range a.databases {
+
+	for _, database := range a.findDatabases(ctx) {
 		wg.Add(1)
 		go func(database string) {
 			defer wg.Done()

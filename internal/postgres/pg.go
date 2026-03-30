@@ -63,16 +63,9 @@ func Backup(ctx context.Context, pool *pgxpool.Pool, database string) error {
 	return nil
 }
 
-func (c *Config) ListDatabases(ctx context.Context) ([]string, error) {
-	pgx, err := c.Connect(ctx)
-
-	if err != nil {
-		slog.Error("unable to connect to postgres", "error", err)
-		return nil, err
-	}
-
+func ListDatabases(ctx context.Context, conn *pgxpool.Pool) ([]string, error) {
 	var databases []string
-	rows, err := pgx.Query(ctx, "SELECT datname FROM pg_database")
+	rows, err := conn.Query(ctx, "SELECT datname FROM pg_database")
 	if err != nil {
 		slog.Error("unable to list databases", "error", err)
 		return nil, err

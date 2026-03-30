@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/ermyar/pg-util/internal/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,9 +15,9 @@ import (
 )
 
 type App struct {
-	databases []string
-	action    func(context.Context) error
-	pool      *pgxpool.Pool
+	regex  *regexp.Regexp
+	action func(context.Context) error
+	pool   *pgxpool.Pool
 }
 
 var (
@@ -32,6 +34,7 @@ func Parse() (*App, error) {
 	var app App
 	var cfg postgres.Config
 	var operation string
+	var databases []string
 
 	if err := godotenv.Load(); err != nil {
 		slog.Debug("unable to load env", "err", err)
@@ -54,13 +57,20 @@ func Parse() (*App, error) {
 
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, opts)))
 
-	pflag.StringSliceVarP(&app.databases, "databases", "d", nil, "list target databases names.")
+	pflag.StringSliceVarP(&databases, "databases", "d", nil, "list target databases names.")
 	pflag.StringVarP(&operation, "operation", "o", "", "operation type, must be: backup, remove.")
 	pflag.StringVarP(&cfg.Host, "host", "h", os.Getenv("PGHOST"), "Specifies the host name of the machine on which the server is running.")
 	pflag.StringVarP(&cfg.Port, "port", "p", os.Getenv("PGPORT"), "Specifies the TCP port number on which the server is listening.")
 	pflag.StringVarP(&cfg.User, "username", "U", os.Getenv("PGUSER"), "Connect to the PostgreSQL as the username.")
 	pflag.StringVarP(&cfg.Password, "password", "W", os.Getenv("PGPASSWORD"), "Connect to the PostgreSQL with the password.")
 	pflag.Parse()
+
+	regex, err := regexp.CompilePOSIX(strings.Join(databases, "|"))
+	if err != nil {
+		slog.Error("unable to compile regular expression", "err", err)
+		return nil, err
+	}
+	app.regex = regex
 
 	switch operation {
 	case "backup":
@@ -80,4 +90,26 @@ func Parse() (*App, error) {
 	app.pool = pool
 
 	return &app, nil
+}
+
+func (a *App) findDatabases(ctx context.Context) []string {
+	databases, err := postgres.ListDatabases(ctx, a.pool)
+	if err != nil {
+		slog.Error("unable to get list of databases", "err", err)
+		return nil
+	}
+
+	var ans []string
+
+	for _, database := range databases {
+		locs := a.regex.FindAllStringIndex(database, -1)
+
+		for _, loc := range locs {
+			if loc[0] == 0 && loc[1] == len(database) {
+				ans = append(ans, database)
+				break
+			}
+		}
+	}
+	return ans
 }
